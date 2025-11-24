@@ -144,3 +144,5 @@ cython_debug/
 
 /resources
 
+results
+models/cifar10

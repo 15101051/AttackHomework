@@ -7,6 +7,7 @@ from torch import multiprocessing
 import numpy as np
 from PIL import Image
 from tqdm import tqdm
+from skimage.metrics import structural_similarity as ssim
 
 from attacks import AdversarialInputAttacker
 from tester.utils import cosine_similarity, list_mean
@@ -21,28 +22,35 @@ def test_transfer_attack_acc(attacker: callable, loader: DataLoader,
     target_models = [model.to(device) for model in target_models]
     if save_path is not None:
         os.makedirs(save_path, exist_ok=True)
+    ssims = []
     for names, x, y in tqdm(loader):
         x = x.to(device)
         y = y.to(device)
-        x = attacker(x, y)
+        xa = attacker(x, y)
+        for i in range(xa.shape[0]):
+            ssim_value = ssim(xa[i].cpu().numpy(), x[i].cpu().numpy(), data_range=x[i].max().item() - x[i].min().item(), channel_axis=0)
+            ssims.append(ssim_value)
         with torch.no_grad():
             denominator += x.shape[0]
             for i, model in enumerate(target_models):
-                pre = model(x)  # N, D
+                pre = model(xa)  # N, D
                 if pre.shape != y.shape:
                     _, pre = torch.max(pre, dim=1)
                 transfer_accs[i] += torch.sum(pre == y).item()
         if save_path is not None:
-            for name, x in zip(names, x):
-                x = x.cpu()
-                x = x.permute(1, 2, 0) * 255
-                x = x.numpy()
-                x = x.astype(np.uint8)
-                x = Image.fromarray(x)
-                x.save(os.path.join(save_path, name))
+            for name, xa in zip(names, xa):
+                xa = xa.cpu()
+                xa = xa.permute(1, 2, 0) * 255
+                xa = xa.numpy()
+                xa = xa.astype(np.uint8)
+                xa = Image.fromarray(xa)
+                xa.save(os.path.join(save_path, name))
 
     transfer_accs = [1 - i / denominator for i in transfer_accs]
     # print
+    print('Average transfer attack accuracy: ', np.round(np.mean(transfer_accs), 4))
+    print('Average SSIM: ', np.round(np.mean(ssims), 4))
+    print('Score: ', np.round(np.mean(ssims) * np.mean(transfer_accs), 4))
     for i, model in enumerate(target_models):
         print('-' * 100)
         if hasattr(model, 'model'):
