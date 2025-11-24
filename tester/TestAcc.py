@@ -13,7 +13,7 @@ def test_acc(model: nn.Module, loader: DataLoader or Iterable,
     criterion = nn.CrossEntropyLoss().to(device)
     model.to(device).eval()
     denominator = 0
-    for x, y in tqdm(loader):
+    for _, x, y in tqdm(loader):
         x, y = x.to(device), y.to(device)
         pre = model(x)
         if pre.shape != y.shape:

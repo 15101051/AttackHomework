@@ -1,21 +1,27 @@
+import os
+
 import torch
 from torch import nn
-from torchvision import transforms
 from torch.utils.data import DataLoader
-from typing import List, Callable, Tuple
-from tqdm import tqdm
-from attacks import AdversarialInputAttacker
-from .utils import cosine_similarity, list_mean
-from copy import deepcopy
 from torch import multiprocessing
+import numpy as np
+from PIL import Image
+from tqdm import tqdm
+
+from attacks import AdversarialInputAttacker
+from tester.utils import cosine_similarity, list_mean
 
 
-def test_transfer_attack_acc(attacker: Callable, loader: DataLoader,
-                             target_models: List[nn.Module],
-                             device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')) -> List[float]:
+def test_transfer_attack_acc(attacker: callable, loader: DataLoader,
+                             target_models: list[nn.Module],
+                             device=torch.device('cuda' if torch.cuda.is_available() else 'cpu'),
+                             save_path=None) -> list[float]:
     transfer_accs = [0] * len(target_models)
     denominator = 0
-    for x, y in tqdm(loader):
+    target_models = [model.to(device) for model in target_models]
+    if save_path is not None:
+        os.makedirs(save_path, exist_ok=True)
+    for names, x, y in tqdm(loader):
         x = x.to(device)
         y = y.to(device)
         x = attacker(x, y)
@@ -26,6 +32,14 @@ def test_transfer_attack_acc(attacker: Callable, loader: DataLoader,
                 if pre.shape != y.shape:
                     _, pre = torch.max(pre, dim=1)
                 transfer_accs[i] += torch.sum(pre == y).item()
+        if save_path is not None:
+            for name, x in zip(names, x):
+                x = x.cpu()
+                x = x.permute(1, 2, 0) * 255
+                x = x.numpy()
+                x = x.astype(np.uint8)
+                x = Image.fromarray(x)
+                x.save(os.path.join(save_path, name))
 
     transfer_accs = [1 - i / denominator for i in transfer_accs]
     # print
@@ -41,12 +55,12 @@ def test_transfer_attack_acc(attacker: Callable, loader: DataLoader,
 
 def test_transfer_attack_acc_and_cosine_similarity(attacker: AdversarialInputAttacker,
                                                    loader: DataLoader,
-                                                   target_models: List[nn.Module],
+                                                   target_models: list[nn.Module],
                                                    device=torch.device(
                                                        'cuda' if torch.cuda.is_available() else 'cpu')
-                                                   ) -> Tuple[List[float], float, float, float]:
+                                                   ) -> tuple[list[float], float, float, float]:
     criterion = nn.CrossEntropyLoss()
-    train_models: List[nn.Module] = attacker.models
+    train_models: list[nn.Module] = attacker.models
     transfer_accs = [0] * len(target_models)
     denominator = 0
     train_train_cosine_similarities, train_test_cosine_similarities, test_test_cosine_similarities = [], [], []
@@ -97,12 +111,12 @@ def test_transfer_attack_acc_and_cosine_similarity(attacker: AdversarialInputAtt
 
 
 
-def test_transfer_attack_acc_with_batch(get_attacker: Callable,
+def test_transfer_attack_acc_with_batch(get_attacker: callable,
                                         batch_x: torch.tensor,
                                         batch_y: torch.tensor,
-                                        get_target_models: Callable,
+                                        get_target_models: callable,
                                         batch_size: int = 1,
-                                        device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')) -> List[
+                                        device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')) -> list[
     float]:
     attacker = get_attacker()
     target_models = get_target_models()
@@ -134,9 +148,9 @@ def test_transfer_attack_acc_with_batch(get_attacker: Callable,
     return transfer_accs
 
 
-def test_transfer_attack_acc_distributed(get_attacker: Callable,
+def test_transfer_attack_acc_distributed(get_attacker: callable,
                                          loader: DataLoader,
-                                         get_target_models: Callable,
+                                         get_target_models: callable,
                                          batch_size: int = 1,
                                          num_gpu: int = torch.cuda.device_count()):
     def list_mean(x: list) -> float:
