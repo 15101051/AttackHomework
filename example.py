@@ -1,16 +1,16 @@
 """
-Method: AttackSuccessRate FinalScore(ASR*SSIM) Submit Score
-VMI_FGSM:                         0.479  0.4221 34.546
-VMI_FGSM step=20:                 0.5275 0.4648
-MI_CommonWeakness:                0.4845 0.4132
-SGD:                              0.059  0.4648
-VMI_Inner_CommonWeakness:         0.4945 0.209
-VMI_Inner_CommonWeakness step=20: 0.5225 0.2225
-VMI_Outer_CommonWeakness:         0.4825 0.4207
-MI_FGSM:                          0.4545 0.403
-Adam_CommonWeakness:              0.0805
-MI_CosineSimilarityEncourager:    0.4925 0.2941
-MI_RandomWeight:                  0.2855
+Method: AttackSuccessRate SSIM FinalScore(ASR*SSIM) SubmitScore
+VMI_FGSM:                         0.4153 0.8848 0.3675 34.546
+VMI_FGSM step=20:                 0.456  0.8812 0.4018
+MI_CommonWeakness:                
+SGD:                              
+VMI_Inner_CommonWeakness:         
+VMI_Inner_CommonWeakness step=20: 
+VMI_Outer_CommonWeakness:         
+MI_FGSM:                          
+Adam_CommonWeakness:              
+MI_CosineSimilarityEncourager:    
+MI_RandomWeight:                  
 """
 from torchvision.models import resnet18
 
@@ -42,7 +42,7 @@ test_transfer_attack_acc(attacker,
                             Identity(Carmon2019Unlabeled(pretrained=True)),  # transfer attack
                             Identity(Wang2020Improving(pretrained=True)),  # transfer attack
                             Identity(Hendrycks2019Using(pretrained=True)),  # transfer attack
-                            Identity(Rice2020OverfittingNetL2(pretrained=True)),  # transfer attack
+                            # Identity(Rice2020OverfittingNetL2(pretrained=True)),  # transfer attack on L2 model, Seems to be too inaccurate
                          ],
                          save_path='./results/lesson/images/'
                          )
