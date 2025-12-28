@@ -58,7 +58,7 @@ def test_transfer_attack_acc(attacker: callable, loader: DataLoader,
         else:
             print(model.__class__, transfer_accs[i])
         print('-' * 100)
-    return transfer_accs
+    return np.mean(transfer_accs), np.mean(ssims)
 
 
 def test_transfer_attack_acc_and_cosine_similarity(attacker: AdversarialInputAttacker,
